@@ -41,7 +41,8 @@ from lavis.models.blip2_models.blip2_t5_instruct import Blip2T5Instruct
 from lavis.models.blip2_models.blip2_vicuna_instruct import Blip2VicunaInstruct
 from lavis.models.blip2_models.blip2_vicuna_xinstruct import Blip2VicunaXInstruct
 
-#from lavis.models.blip_diffusion_models.blip_diffusion import BlipDiffusion
+# Remove the diffusion module to avoid dependency on diffusers and its outdated cached_download:
+# from lavis.models.blip_diffusion_models.blip_diffusion import BlipDiffusion
 
 from lavis.models.pnp_vqa_models.pnp_vqa import PNPVQA
 from lavis.models.pnp_vqa_models.pnp_unifiedqav2_fid import PNPUnifiedQAv2FiD
@@ -53,7 +54,6 @@ from lavis.models.clip_models.model import CLIP
 from lavis.models.gpt_models.gpt_dialogue import GPTDialogue
 
 from lavis.processors.base_processor import BaseProcessor
-
 
 __all__ = [
     "load_model",
@@ -70,7 +70,7 @@ __all__ = [
     "BlipFeatureExtractor",
     "BlipCaption",
     "BlipClassification",
-    # "BlipDiffusion",
+    # "BlipDiffusion",  # Removed to avoid diffusers dependency issue
     "BlipITM",
     "BlipNLVR",
     "BlipPretrain",
@@ -98,22 +98,16 @@ def load_model(name, model_type, is_eval=False, device="cpu", checkpoint=None):
     """
     Load supported models.
 
-    To list all available models and types in registry:
-    >>> from lavis.models import model_zoo
-    >>> print(model_zoo)
-
     Args:
         name (str): name of the model.
         model_type (str): type of the model.
         is_eval (bool): whether the model is in eval mode. Default: False.
         device (str): device to use. Default: "cpu".
-        checkpoint (str): path or to checkpoint. Default: None.
-            Note that expecting the checkpoint to have the same keys in state_dict as the model.
+        checkpoint (str): path to checkpoint. Default: None.
 
     Returns:
         model (torch.nn.Module): model.
     """
-
     model = registry.get_model_class(name).from_pretrained(model_type=model_type)
 
     if checkpoint is not None:
@@ -132,18 +126,13 @@ def load_preprocess(config):
     """
     Load preprocessor configs and construct preprocessors.
 
-    If no preprocessor is specified, return BaseProcessor, which does not do any preprocessing.
-
     Args:
         config (dict): preprocessor configs.
 
     Returns:
         vis_processors (dict): preprocessors for visual inputs.
         txt_processors (dict): preprocessors for text inputs.
-
-        Key is "train" or "eval" for processors used in training and evaluation respectively.
     """
-
     def _build_proc_from_cfg(cfg):
         return (
             registry.get_processor_class(cfg.name).from_config(cfg)
@@ -184,10 +173,6 @@ def load_model_and_preprocess(name, model_type, is_eval=False, device="cpu"):
     """
     Load model and its related preprocessors.
 
-    List all available models and types in registry:
-    >>> from lavis.models import model_zoo
-    >>> print(model_zoo)
-
     Args:
         name (str): name of the model.
         model_type (str): type of the model.
@@ -200,18 +185,14 @@ def load_model_and_preprocess(name, model_type, is_eval=False, device="cpu"):
         txt_processors (dict): preprocessors for text inputs.
     """
     model_cls = registry.get_model_class(name)
-
-    # load model
     model = model_cls.from_pretrained(model_type=model_type)
 
     if is_eval:
         model.eval()
 
-    # load preprocess
     cfg = OmegaConf.load(model_cls.default_config_path(model_type))
     if cfg is not None:
         preprocess_cfg = cfg.preprocess
-
         vis_processors, txt_processors = load_preprocess(preprocess_cfg)
     else:
         vis_processors, txt_processors = None, None
@@ -229,16 +210,6 @@ def load_model_and_preprocess(name, model_type, is_eval=False, device="cpu"):
 
 
 class ModelZoo:
-    """
-    A utility class to create string representation of available model architectures and types.
-
-    >>> from lavis.models import model_zoo
-    >>> # list all available models
-    >>> print(model_zoo)
-    >>> # show total number of models
-    >>> print(len(model_zoo))
-    """
-
     def __init__(self) -> None:
         self.model_zoo = {
             k: list(v.PRETRAINED_MODEL_CONFIG_DICT.keys())
